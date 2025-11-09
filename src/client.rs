@@ -169,8 +169,6 @@ lazy_static::lazy_static! {
     static ref CLIPBOARD_STATE: Arc<Mutex<ClipboardState>> = Arc::new(Mutex::new(ClipboardState::new()));
 }
 
-const PUBLIC_SERVER: &str = "public";
-
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub fn get_key_state(key: enigo::Key) -> bool {
     use enigo::KeyboardControllable;
@@ -289,18 +287,7 @@ impl Client {
         let (rendezvous_server, servers, contained) = if other_server.is_empty() {
             crate::get_rendezvous_server(1_000).await
         } else {
-            if other_server == PUBLIC_SERVER {
-                (
-                    check_port(RENDEZVOUS_SERVERS[0], RENDEZVOUS_PORT),
-                    RENDEZVOUS_SERVERS[1..]
-                        .iter()
-                        .map(|x| x.to_string())
-                        .collect(),
-                    true,
-                )
-            } else {
-                (check_port(other_server, RENDEZVOUS_PORT), Vec::new(), true)
-            }
+            (check_port(other_server, RENDEZVOUS_PORT), Vec::new(), true)
         };
 
         if crate::get_ipv6_punch_enabled() {
@@ -1789,9 +1776,7 @@ impl LoginConfigHandler {
             let mut server_key = v.next().unwrap_or_default().split('?');
             let server = server_key.next().unwrap_or_default();
             let args = server_key.next().unwrap_or_default();
-            let key = if server == PUBLIC_SERVER {
-                config::RS_PUB_KEY.to_owned()
-            } else {
+            let key = {
                 let mut args_map: HashMap<String, &str> = HashMap::new();
                 for arg in args.split('&') {
                     if let Some(kv) = arg.find('=') {
@@ -2537,11 +2522,9 @@ impl LoginConfigHandler {
             }
         }
         if let Some((_, b, c)) = self.other_server.as_ref() {
-            if b != PUBLIC_SERVER {
-                config
-                    .options
-                    .insert("other-server-key".to_owned(), c.clone());
-            }
+            config
+                .options
+                .insert("other-server-key".to_owned(), c.clone());
         }
         if self.force_relay {
             config
